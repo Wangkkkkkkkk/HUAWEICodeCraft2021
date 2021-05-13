@@ -13,18 +13,17 @@
 #include<math.h>
 using namespace std;
 
-// ofstream outfile("output_old.txt", ios::trunc);
+ofstream outfile("output.txt", ios::trunc);
 
 //可调参数
-
 int server_choose_times =1;
 int a_bound = 10000000;//请求数小于这个值时，使用爬山算法
-int max_open_list_size = 2000;  //越小规划越快,越大规划地越好
+int max_open_list_size = 1000;  //越小规划越快,越大规划地越好
 
 float value_piancha;//弥补普遍核数比内存数少的量纲问题，认为核数量纲为内存的v_p倍
 float piancha_size = 0;//弥补尺寸越大，灵活性越小的问题。
 
-//灵魂调参点
+//调参点
 float piancha_run_purchse = 3; //越大purchase越重要
 float purchase_wt= 6;         //越大购买价格更重要
 float vl_wt = 2;  //增大核数内存量纲比
@@ -35,11 +34,6 @@ int max_ser_search_size = 10;  //完美匹配探索的服务器数量，越大�
 int setvm_minsize = 1; //决定完美匹配方案的探索起点
 int setvm_maxsize = 5; //决定完美匹配方案的探索终点 
 int cm_wt = 3;   //完美匹配里决定虚拟机大小的核数量纲系数
-
-
-
-int add_size_yesterday_max = 0;
-bool super_mig_flag =0;
 
 typedef struct A
 {
@@ -98,7 +92,6 @@ class compareIII
     {
         // 排序方式
         return iii1.m_vmid<iii2.m_vmid;         //按虚拟机序号升序排序
-
     }
 };
 
@@ -323,7 +316,6 @@ class SLVIVII
         list<VIVII> m_set_list;
 };
 
-
 class SVIVII
 {
     public:
@@ -499,17 +491,6 @@ vector<IntIntInt> mig_list;
 // 每台服务器里的虚拟机信息
 unordered_map<int,vector<vector<int>>> server_vminfo_map;  //severid:{{vm_id,cores,mems,0orAorB},......}
 
-//A*算法开集组件
-// set<FVIII,compareFVIII> open_list;
-vector<IntIntInt> oper_list_copy;
-set<FIII,compareFIII> open_list_cb;
-vector<FIII> oper_list_cb;
-
-vector<IntIntInt> oper_list_scti;
-set<FVIII,compareFVIII> open_list_sct;
-vector<FIII> oper_list_sctf;
-FVIII oper_list_sct = {0.0,{{0,0,0}}};
-
 string best_server_type;
 int max_need_mem=0;
 int max_need_core =0;
@@ -661,13 +642,11 @@ void del_vm(int server_id,int vm_id ,int vm_node,int vm_core,int vm_mem)
     vm_num--;
 }
 
-
-void migration(int max_mignum)
+void migration()
 {
     int mig_num = 0;
-
-    int max_mig_num =max_mignum ;
-    // max_mig_num -= 1;
+    int max_mig_num =(int) vms_info_map.size()*30/1000 ;
+    max_mig_num -= 1;
     int key = 1;
     double cpuRate=0.0;
     double memoryRate=0.0;
@@ -682,7 +661,7 @@ void migration(int max_mignum)
     int Vast_vmmemory=0;
     int Vast_vmnode=0;
     int point=0;
-
+    int point_m=0;
         serverrateSet.clear();
 	for(int i=0;i<server_id_count;i++ )
     	{
@@ -692,7 +671,7 @@ void migration(int max_mignum)
 	    serverrateSet.insert(rate(i,rate_all));
 	}
 
-    	for(auto it=serverrateSet.begin();it!=serverrateSet.end();it++)
+    	for(auto it=serverrateSet.begin();it!=serverrateSet.end();)
     	{
 	    int i=it->m_id; 
 	    if(mig_num>=max_mig_num)
@@ -704,7 +683,7 @@ void migration(int max_mignum)
 		continue;
 	    }
 	    	int rate_all = (servers_info_map[i].A_cpu+servers_info_map[i].B_cpu) - (servers_info_map[i].A_memory+servers_info_map[i].B_memory);
-        // int rate_all = it->m_rate;
+
 		if(rate_all>0)
 	    	{
 		    point = 1;
@@ -744,8 +723,9 @@ void migration(int max_mignum)
 		}
 		//for(int k=i+1;k<server_id_count;k++)      
                 //{
-		for(auto its=serverrateSet.end();its!=serverrateSet.begin();its--)
+		for(auto its=serverrateSet.end();its!=serverrateSet.begin();)
     	        {
+                int point_k=0;
 	            int k=its->m_id;
 		    if(server_vminfo_map[k].size()==0 || k==i)
                     {
@@ -766,6 +746,21 @@ void migration(int max_mignum)
                            servers_info_map[k].memory += Vast_vmmemory;
                            server_vminfo_map[k].push_back(vector<int>{Vast_vmid,Vast_vmcpu,Vast_vmmemory,0});
                            mig_num++;
+                            serverrateSet.erase(it);
+                            int rate_all = (servers_info_map[i].A_cpu+servers_info_map[i].B_cpu) - (servers_info_map[i].A_memory+servers_info_map[i].B_memory);
+	                        if(rate_all<0)
+                            {rate_all = -rate_all;}
+                            serverrateSet.insert(rate(i,rate_all));
+                            it=serverrateSet.begin();
+
+                            serverrateSet.erase(its);
+                            rate_all = (servers_info_map[k].A_cpu+servers_info_map[k].B_cpu) - (servers_info_map[k].A_memory+servers_info_map[k].B_memory);
+	                        if(rate_all<0)
+                            {rate_all = -rate_all;}
+                            serverrateSet.insert(rate(k,rate_all));
+                            its=serverrateSet.end();
+                            point_k=1;
+                            point_m=1;
                            break;
                         }
                     }
@@ -782,6 +777,21 @@ void migration(int max_mignum)
                             servers_info_map[k].memory += Vast_vmmemory;
                             server_vminfo_map[k].push_back(vector<int>{Vast_vmid,Vast_vmcpu,Vast_vmmemory,1});
                             mig_num++;
+                            serverrateSet.erase(it);
+                            int rate_all = (servers_info_map[i].A_cpu+servers_info_map[i].B_cpu) - (servers_info_map[i].A_memory+servers_info_map[i].B_memory);
+	                        if(rate_all<0)
+                            {rate_all = -rate_all;}
+                            serverrateSet.insert(rate(i,rate_all));
+                            it=serverrateSet.begin();
+
+                            serverrateSet.erase(its);
+                            rate_all = (servers_info_map[k].A_cpu+servers_info_map[k].B_cpu) - (servers_info_map[k].A_memory+servers_info_map[k].B_memory);
+	                        if(rate_all<0)
+                            {rate_all = -rate_all;}
+                            serverrateSet.insert(rate(k,rate_all));
+                            its=serverrateSet.end();
+                            point_k=1;
+                            point_m=1;
                             break;
                          }
                      }
@@ -798,10 +808,33 @@ void migration(int max_mignum)
                              servers_info_map[k].memory += Vast_vmmemory;
                              server_vminfo_map[k].push_back(vector<int>{Vast_vmid,Vast_vmcpu,Vast_vmmemory,2});
                              mig_num++;
+                             serverrateSet.erase(it);
+                            int rate_all = (servers_info_map[i].A_cpu+servers_info_map[i].B_cpu) - (servers_info_map[i].A_memory+servers_info_map[i].B_memory);
+	                        if(rate_all<0)
+                            {rate_all = -rate_all;}
+                            serverrateSet.insert(rate(i,rate_all));
+                            it=serverrateSet.begin();
+
+                            serverrateSet.erase(its);
+                            rate_all = (servers_info_map[k].A_cpu+servers_info_map[k].B_cpu) - (servers_info_map[k].A_memory+servers_info_map[k].B_memory);
+	                        if(rate_all<0)
+                            {rate_all = -rate_all;}
+                            serverrateSet.insert(rate(k,rate_all));
+                            its=serverrateSet.end();
+                            point_m=1;
+                            point_k=1;
                              break;
                          }
                      }
+                     if(point_k==0)
+                     {
+                         its--;
+                     }
 		 }
+         if(point_m==0)
+         {
+             it++;
+         }
 	}
 
 
@@ -909,7 +942,6 @@ void migration(int max_mignum)
 // 扩容时找到最佳服务器
 string Find_server(int vm_allcore, int vm_allmemory, int vm_maxcore, int vm_maxmem,int sct)
 {
-
     serverTypeCostSet_today.clear();
     int _needvm_core = vm_allcore;
     int _needvm_memory = vm_allmemory;
@@ -988,177 +1020,6 @@ string Find_server(int vm_allcore, int vm_allmemory, int vm_maxcore, int vm_maxm
     return best_server;
 }
 
-//A*相关函数、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、、
-void add_vm(int server_id,int vm_id,int vm_node,int vm_core ,int vm_mem)
-{
-switch(vm_node)
-{
-    case 0:
-        vms_info_map[vm_id]=vector<int>{vm_core,vm_mem,server_id,0};
-        servers_info_map[server_id].A_cpu -= vm_core/2;
-        servers_info_map[server_id].B_cpu -= vm_core/2;
-        servers_info_map[server_id].A_memory -= vm_mem/2;
-        servers_info_map[server_id].B_memory -= vm_mem/2;
-        servers_info_map[server_id].cpu += vm_core;
-        servers_info_map[server_id].memory += vm_mem;
-        server_vminfo_map[server_id].push_back(vector<int>{vm_id,vm_core,vm_mem,0});
-        break;
-    case 1:
-        vms_info_map[vm_id]=vector<int>{vm_core,vm_mem,server_id,1};
-        servers_info_map[server_id].A_cpu -= vm_core;
-        servers_info_map[server_id].A_memory -= vm_mem;
-        servers_info_map[server_id].cpu += vm_core;
-        servers_info_map[server_id].memory += vm_mem;
-        server_vminfo_map[server_id].push_back(vector<int>{vm_id,vm_core,vm_mem,1});
-        break;
-    case 2:
-        vms_info_map[vm_id]=vector<int>{vm_core,vm_mem,server_id,2};
-        servers_info_map[server_id].B_cpu -= vm_core;
-        servers_info_map[server_id].B_memory -= vm_mem;
-        servers_info_map[server_id].cpu += vm_core;
-        servers_info_map[server_id].memory += vm_mem;
-        server_vminfo_map[server_id].push_back(vector<int>{vm_id,vm_core,vm_mem,2});
-        break;
-}
-}
-int do_opers(vector<IntIntInt> _oper_list,vector<vector< int>>_reqs_list) //确定了最佳oper_list后，在真实世界复现这些操作
-{
-    int _count = _oper_list.size();
-    int _purchase_num =0;
-    int _req_size =_reqs_list.size();
-    for(int i=1;i<_count;i++)
-    {
-        int _req_count = i-_purchase_num-1;
-        int _server_id = _oper_list[i].m_serverid;
-        int _vm_id ;
-        int _core_vm ;
-        int _mem_vm ;
-        switch(_oper_list[i].m_node)
-        {
-            case -1: //删除
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                del_vm(_server_id,_vm_id,0,_core_vm,_mem_vm);
-                break;
-            case -2: //删除
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                del_vm(_server_id,_vm_id,1,_core_vm,_mem_vm);
-                break;
-            case -3: //删除
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                del_vm(_server_id,_vm_id,2,_core_vm,_mem_vm);
-                break;
-            case 0: //_server_id双节点添加
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                add_vm(_server_id,_vm_id,0,_core_vm,_mem_vm);
-                break;
-            case 1://_server_idA节点添加
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                add_vm(_server_id,_vm_id,1,_core_vm,_mem_vm);
-                break;
-            case 2://_server_idB节点添加
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                add_vm(_server_id,_vm_id,2,_core_vm,_mem_vm);
-                break;
-            case 3://购买
-                _purchase_num++;
-                int half_core = server_type_map[best_server_type].cpu/2;
-                int half_mem = server_type_map[best_server_type].memory/2;
-                servers_info_map[server_id_count].A_cpu = half_core;
-                servers_info_map[server_id_count].B_cpu = half_core;
-                servers_info_map[server_id_count].A_memory = half_mem;
-                servers_info_map[server_id_count].B_memory = half_mem;
-                servers_info_map[server_id_count].cpu = 0;
-                servers_info_map[server_id_count].memory = 0;
-		//添加服务器编号类型信息
-		serverIdType_map[server_id_count] = best_server_type;
-
-                server_id_count++;
-                break;
-        }
-    }
-    return _purchase_num; //返回oper_list中购买操作的数量，用于输出购买请求
-}
-
-void cancel_opers(vector<IntIntInt> _oper_list,vector<vector< int>>_reqs_list,int _req_head)   //时间回溯，逆执行opers
-{
-    int _count = _oper_list.size()-1;
-    if(_count>=0)
-    {
-    int _req_count = _req_head-1;
-    int _purchase_num =0;
-    for(int i=_count;i>0;i--)
-    {
-        int _server_id = _oper_list[i].m_serverid;
-        int _vm_id ;
-        int _core_vm ;
-        int _mem_vm ;
-
-        switch(_oper_list[i].m_node)
-        {
-            case -1:
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                add_vm(_server_id,_vm_id,0,_core_vm,_mem_vm);
-                _req_count-=1;
-                break;
-            case -2:
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                add_vm(_server_id,_vm_id,1,_core_vm,_mem_vm);
-                _req_count-=1;
-                break;
-            case -3:
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                add_vm(_server_id,_vm_id,2,_core_vm,_mem_vm);
-                _req_count-=1;
-                break;
-            case 0:
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                del_vm(_server_id,_vm_id,0,_core_vm,_mem_vm);
-                _req_count-=1;
-                break;
-            case 1:
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                del_vm(_server_id,_vm_id,1,_core_vm,_mem_vm);
-                _req_count-=1;
-                break;
-            case 2:
-                _vm_id = _reqs_list[_req_count][4];
-                _core_vm = _reqs_list[_req_count][1];
-                _mem_vm =  _reqs_list[_req_count][2];
-                del_vm(_server_id,_vm_id,2,_core_vm,_mem_vm);
-                _req_count-=1;
-                break;
-            case 3:
-                server_id_count-=1;
-                auto it = servers_info_map.find(server_id_count);
-                servers_info_map.erase(it);
-                auto it1 = serverIdType_map.find(server_id_count);
-                serverIdType_map.erase(it1);
-                break;
-        }
-    }}
-}
 string find_perfectserver(int need_core,int need_mem,bool allused_flag)
 {
     string _type;
@@ -1675,7 +1536,7 @@ void perfect_purset()
 }
 
 
-void climbmount_setvm_pro(vector<vector<int>> reqs_aday,int sct)
+void hillclimbing_setvm_pro(vector<vector<int>> reqs_aday,int sct)
 {
 
     
@@ -1942,7 +1803,7 @@ void climbmount_setvm_pro(vector<vector<int>> reqs_aday,int sct)
     if(purchase_type_num ==0)
     {
         cout<<"(purchase, 0)"<<endl;
-    // outfile<<"(purchase, 0)"<<endl;
+    outfile<<"(purchase, 0)"<<endl;
     }
     else
     {
@@ -1964,7 +1825,7 @@ void climbmount_setvm_pro(vector<vector<int>> reqs_aday,int sct)
     string mig_head = "(migration, )";
     mig_head.insert(12,int2str(mig_list.size()));
     cout<<mig_head<<endl;
-    // outfile<<mig_head<<endl;
+    outfile<<mig_head<<endl;
     if(mig_list.size()!=0)
     {
         for(int ij =0; ij<mig_list.size();ij++)
@@ -1972,17 +1833,17 @@ void climbmount_setvm_pro(vector<vector<int>> reqs_aday,int sct)
             if(mig_list[ij].m_node==0)
             {
                 cout<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<")"<<endl;
-            // outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<")"<<endl;
+            outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<")"<<endl;
             }
             else if(mig_list[ij].m_node==1)
             {
                 cout<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", A)"<<endl;
-            // outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", A)"<<endl;
+            outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", A)"<<endl;
             }
             else if(mig_list[ij].m_node==2)
             {
                 cout<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", B)"<<endl;
-            // outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", B)"<<endl;
+            outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", B)"<<endl;
             }
         }
     }
@@ -2013,15 +1874,15 @@ void climbmount_setvm_pro(vector<vector<int>> reqs_aday,int sct)
             case -3:break;
             case 0 :
             cout<< "(" <<_id<< ")"<<endl;
-                    // outfile<< "(" <<_id<< ")"<<endl;
+                    outfile<< "(" <<_id<< ")"<<endl;
                     break;
             case 1 :
             cout<< "(" <<_id<< ", " <<"A"<< ")"<<endl;
-                    // outfile<< "(" <<_id<< ", " <<"A"<< ")"<<endl;
+                    outfile<< "(" <<_id<< ", " <<"A"<< ")"<<endl;
                     break;
             case 2 :
             cout<< "(" <<_id<< ", " <<"B"<< ")"<<endl;
-                    // outfile<< "(" <<_id<< ", " <<"B"<< ")"<<endl;
+                    outfile<< "(" <<_id<< ", " <<"B"<< ")"<<endl;
                     break;
             case 3 :break;
         }
@@ -2332,24 +2193,24 @@ void climbmount_setvm(vector<vector<int>> reqs_aday,int sct)
     if(purchase_num_climb ==0)
     {
         cout<<"(purchase, 0)"<<endl;
-        // outfile<<"(purchase, 0)"<<endl;
+        outfile<<"(purchase, 0)"<<endl;
     }
     else
     {
         cout<<"(purchase, 1)"<<endl;
-        // outfile<<"(purchase, 1)"<<endl;
+        outfile<<"(purchase, 1)"<<endl;
         string _purchase_body ="(, )";
         _purchase_body.insert(3,int2str(purchase_num_climb));
         _purchase_body.insert(1,best_server_type);
         cout<<_purchase_body<<endl;
-        // outfile<<_purchase_body<<endl;
+        outfile<<_purchase_body<<endl;
 
     }
     // 输出迁移指令
     string mig_head = "(migration, )";
     mig_head.insert(12,int2str(mig_list.size()));
     cout<<mig_head<<endl;
-    // outfile<<mig_head<<endl;
+    outfile<<mig_head<<endl;
     if(mig_list.size()!=0)
     {
         for(int ij =0; ij<mig_list.size();ij++)
@@ -2357,17 +2218,17 @@ void climbmount_setvm(vector<vector<int>> reqs_aday,int sct)
             if(mig_list[ij].m_node==0)
             {
                 cout<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<")"<<endl;
-            // outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<")"<<endl;
+            outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<")"<<endl;
             }
             else if(mig_list[ij].m_node==1)
             {
                 cout<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", A)"<<endl;
-            // outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", A)"<<endl;
+            outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", A)"<<endl;
             }
             else if(mig_list[ij].m_node==2)
             {
                 cout<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", B)"<<endl;
-            // outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", B)"<<endl;
+            outfile<<"("<<mig_list[ij].m_vmid<<", "<<mig_list[ij].m_serverid<<", B)"<<endl;
             }
         }
     }
@@ -2393,15 +2254,15 @@ void climbmount_setvm(vector<vector<int>> reqs_aday,int sct)
             case -3:break;
             case 0 :
             cout<< "(" <<_id<< ")"<<endl;
-                    // outfile<< "(" <<_id<< ")"<<endl;
+                    outfile<< "(" <<_id<< ")"<<endl;
                     break;
             case 1 :
             cout<< "(" <<_id<< ", " <<"A"<< ")"<<endl;
-                    // outfile<< "(" <<_id<< ", " <<"A"<< ")"<<endl;
+                    outfile<< "(" <<_id<< ", " <<"A"<< ")"<<endl;
                     break;
             case 2 :
             cout<< "(" <<_id<< ", " <<"B"<< ")"<<endl;
-                    // outfile<< "(" <<_id<< ", " <<"B"<< ")"<<endl;
+                    outfile<< "(" <<_id<< ", " <<"B"<< ")"<<endl;
                     break;
             case 3 :break;
         }
@@ -2420,62 +2281,22 @@ void read_req_map()
     for(today = 0;today<total_day;today++)
     {
         mig_list.clear();
-        int max_mignum;
-        max_mignum = floor(vms_info_map.size()*30/1000) ;
 
-        if(3*today>total_day)
-        {
-            int add_size_yesterday = add_vmsize[today-1];
-            if((!super_mig_flag)&&(add_size_yesterday>1000))
-            {
-                max_mignum = vms_info_map.size();
-                super_mig_flag =1;
-            }
-        }
-        
-        
-        migration(max_mignum);
-/*
-//输出服务器使用率   //------------------------------------------------------------------------------------------------------------提交注释
-    for(int i=0;i<server_id_count;i++)
-    {
-	double cpuRate=0.0;
-	double memoryRate=0.0;
-	//if( server_vminfo_map[i].size()>0 )
-	//{
-	    string Type = serverIdType_map[i];
-	    server _serverInfo = server_type_map[Type];
-	    server_info _useserver = servers_info_map[i];
-	    cpuRate = 1 - double(_useserver.A_cpu+_useserver.B_cpu)/double(_serverInfo.cpu);
-	    memoryRate = 1 - double(_useserver.A_memory+_useserver.B_memory)/double(_serverInfo.memory);
-	    //if( (cpuRate-memoryRate)>0.3 || (cpuRate-memoryRate)<-0.3)
-	    //{
-	    	//cout<< "server " <<i<< ": "<<"cpuRate: "<<cpuRate<<" memoryRate: "<<memoryRate<<endl;
-		outfile<<"server " <<i<< ": "<<"cpuRate: "<<cpuRate<<" memoryRate: "<<memoryRate<<endl;
-	    //}
-	//}
-    }
-*/
+        migration();
 
         vector<string> purchase_list;
         reqs_aday.clear();
         reqs_aday = reqs_map[today];
 
-
         int add_size_today = add_vmsize[today];
-        if(add_size_today>1000)
+        if(add_size_today>2000)
         {   
-            // for(int sct =0;sct<server_choose_times;sct++)
-            // {
-                // oper_list_sct=FVIII (0.0,{{sct,sct,sct}});
-                climbmount_setvm_pro(reqs_aday,server_choose_times);
-            // }
+            climbmount_setvm_pro(reqs_aday,server_choose_times);
         }
         else
         {
             climbmount_setvm(reqs_aday,server_choose_times);
         }
-
 
         //更新map
         if(today<total_day - first_read_lenth)
@@ -2565,29 +2386,6 @@ void read_req_map()
                 add_vmsize[today+first_read_lenth]+=all_vmmem-max_vmmem;
                 max_vmmem=all_vmmem;}
         }
-
-/*
-//输出服务器使用率   //------------------------------------------------------------------------------------------------------------提交注释
-    for(int i=0;i<server_id_count;i++)
-    {
-	double cpuRate=0.0;
-	double memoryRate=0.0;
-	//if( server_vminfo_map[i].size()>0 )
-	//{
-	    string Type = serverIdType_map[i];
-	    server _serverInfo = server_type_map[Type];
-	    server_info _useserver = servers_info_map[i];
-	    cpuRate = 1 - double(_useserver.A_cpu+_useserver.B_cpu)/double(_serverInfo.cpu);
-	    memoryRate = 1 - double(_useserver.A_memory+_useserver.B_memory)/double(_serverInfo.memory);
-	    //if( (cpuRate-memoryRate)>0.3 || (cpuRate-memoryRate)<-0.3)
-	    //{
-	    	//cout<< "server " <<i<< ": "<<"cpuRate: "<<cpuRate<<" memoryRate: "<<memoryRate<<endl;
-		outfile<<"server " <<i<< ": "<<"cpuRate: "<<cpuRate<<" memoryRate: "<<memoryRate<<endl;
-	    //}
-	//}
-    }
-*/
-
     }
 }
 
@@ -2600,21 +2398,16 @@ int main()
     int amount = 0;
     string s;
 
-    // start = clock();
+    start = clock();
     // 读取服务器和虚拟机类型数据，建立服务器类型表和虚拟机类型表--------------------------------------------------------------------------------------
 
     // std::freopen("/home/kai/file/HuaWeiCodeCraft2021/training-data/training-1.txt","rb",stdin);
-    // std::freopen("training-1.txt","rb",stdin);
+    std::freopen("training-1.txt","rb",stdin);
     // std::freopen("trainig-1.txt","rb",stdin);
 
 
     cin>>s;
     amount = str2int(s);
-
-    
-
-
-
     for (int i = 0; i < amount; i++)
     {
         string type_temp,core_temp,mem_temp,purchasecost_temp,runcost_temp;
@@ -2636,15 +2429,6 @@ int main()
     int reqs_num = 0;
     cin>>s;
     total_day = str2int(s);
-
-    //根据数据集选择灵魂参数
-    if(total_day<900)
-    {
-        piancha_run_purchse = 2; //越大runcost越重要
-        purchase_wt= 8;         //越大购买价格更重要
-        vl_wt = 2;  //增大核数内存量纲比
-        vl_wt2 = 2;//用在部署的量纲扩张系数
-    }
     cin>>s;
     first_read_lenth = str2int(s);
 
@@ -2764,7 +2548,7 @@ int main()
 // /**/
 //     finish = clock();
 //     printf("\nusr time: %f s \n",double(finish - start) / CLOCKS_PER_SEC);
-    // fclose(stdin);
-    // outfile.close();
+    fclose(stdin);
+    outfile.close();
     return 0 ;
 }
