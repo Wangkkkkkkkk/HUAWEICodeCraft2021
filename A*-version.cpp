@@ -453,6 +453,7 @@ switch(vm_node)
 //         }
 //     }
 // }
+
 int do_opers_temp(vector<IntIntInt> _oper_list,vector<vector< int>>_reqs_list)  //A*组件，在模拟世界下实现oper_list向量里所有的操作
 {
     int _count = _oper_list.size();
@@ -540,6 +541,7 @@ int do_opers(vector<IntIntInt> _oper_list,vector<vector< int>>_reqs_list) //确�
     }
     return _purchase_num; //返回oper_list中购买操作的数量，用于输出购买请求
 }
+
 void cancel_opers(vector<IntIntInt> _oper_list,vector<vector< int>>_reqs_list,int _req_head)
 {
     int _count = _oper_list.size()-1;
@@ -1409,6 +1411,7 @@ void migration(int mig_size)
         }
     }
 }
+
 void build_reqsmap(int total_day)
 {
     string s;
@@ -1517,8 +1520,6 @@ void read_req_map()
     } //结束一天请求读取的括号
 }//函数结束的括号
 
-
-
 int main()////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////主函数
 {
     int reqs_count = 0;
@@ -1573,9 +1574,6 @@ int main()//////////////////////////////////////////////////////////////////////
 
     //开始读取reqs并处理
     read_req_map();
-
-
-
 
     return 0 ;
 }
